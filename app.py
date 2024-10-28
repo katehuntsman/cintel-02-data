@@ -1,18 +1,125 @@
 import plotly.express as px
-from shiny.express import input, ui
-from shinywidgets import render_plotly
-import palmerpenguins  # This package provides the Palmer Penguins dataset
+from palmerpenguins import load_penguins
+from shiny.express import input, ui, render
+from shinywidgets import render_widget, render_plotly
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-# Use the built-in function to load the Palmer Penguins dataset
-penguins_df = palmerpenguins.load_penguins()
+penguins = load_penguins()
 
-ui.page_opts(title="Huntsman - Penguin Data", fillable=True)
+ui.page_opts(title="Penguins Data - Kate Huntsman", fillable=True)
+
+# Shiny UI sidebar for user interaction
+with ui.sidebar(
+    position="right", bg="#f8f8f8", open="open"
+):  # Set sidebar open by default
+    ui.h2("Sidebar")  # Add a second-level header titled "Sidebar"
+
+    # Dropdown for choosing a column
+    ui.input_selectize(
+        "selected_attribute",
+        "Select column to visualize",
+        choices=["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"],
+        selected="bill_length_mm",
+    )
+
+    # Numeric input for Plotly histogram bins
+    ui.input_numeric("plotly_bin_count", "Plotly bin numeric", 1, min=1, max=10)
+
+    # Slider input for Seaborn bins
+    ui.input_slider(
+        "seaborn_bin_count", "Seaborn bin count", 10, 50, 100, step=5, animate=True
+    )
+
+    # Checkbox to filter species
+    ui.input_checkbox_group(
+        "selected_species_list",
+        "Select a species",
+        choices=["Adelie", "Gentoo", "Chinstrap"],
+        selected=["Chinstrap"],
+        inline=True,
+    )
+
+    # Horizontal rule in the sidebar
+    ui.hr()
+
+    # Hyperlink to the sidebar for GitHub repository
+    ui.h5("GitHub Code Repository")
+    ui.a(
+        "cintel-02-data",
+        href="https://github.com/katehuntsman/cintel-02-data",
+        target="_blank",
+    )
+
+# Main content layout
 with ui.layout_columns():
+    # Display the Plotly Histogram
+    with ui.card():
+        ui.card_header("Plotly Histogram")
 
-    @render_plotly
-    def plot1():
-        return px.histogram(px.data.tips(), y="tip")
+        @render_plotly
+        def plotly_histogram():
+            return px.histogram(
+                penguins,
+                x=input.selected_attribute(),
+                nbins=input.plotly_bin_count(),
+                color="species",
+            )
 
-    @render_plotly
-    def plot2():
-        return px.histogram(px.data.tips(), y="total_bill")
+    # Display Data Table (showing all data)
+    with ui.card():
+        ui.card_header("Data Table")
+
+        @render.data_frame
+        def data_table():
+            return render.DataTable(penguins)
+
+    # Display Data Grid (showing all data)
+    with ui.card():
+        ui.card_header("Data Grid")
+
+        @render.data_frame
+        def data_grid():
+            return render.DataGrid(penguins)
+
+
+# Display the Scatterplot and Seaborn Histogram
+with ui.layout_columns():
+    # Plotly Scatterplot (showing all species)
+    with ui.card():
+        ui.card_header("Plotly Scatterplot: Species")
+
+        @render_plotly
+        def plotly_scatterplot():
+            return px.scatter(
+                data_frame=penguins,
+                x="body_mass_g",
+                y="bill_depth_mm",
+                color="species",
+                labels={
+                    "bill_depth_mm": "Bill Depth (mm)",
+                    "body_mass_g": "Body Mass (g)",
+                },
+            )
+
+    # Seaborn Histogram (showing all species)
+    with ui.card():
+        ui.card_header("Seaborn Histogram: All Species")
+
+        @render.plot
+        def seaborn_histogram():
+            hist = sns.histplot(
+                data=penguins, x="body_mass_g", bins=input.seaborn_bin_count()
+            )
+            hist.set_xlabel("Mass (g)")
+            hist.set_ylabel("Count")
+            return hist
+            
+    # Summary Statistics Table
+    with ui.card():
+        ui.card_header("Summary Statistics")
+        
+        @render.data_frame
+        def summary_table():
+            summary = penguins.describe()
+            return summary.reset_index()  # Reset index for display
