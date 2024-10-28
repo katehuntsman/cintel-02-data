@@ -3,48 +3,45 @@ from palmerpenguins import load_penguins
 from shiny.express import input, ui, render
 from shinywidgets import render_widget, render_plotly
 import seaborn as sns
-import matplotlib.pyplot as plt
 
 penguins = load_penguins()
 
 ui.page_opts(title="Penguins Data - Kate Huntsman", fillable=True)
 
-# Shiny UI sidebar for user interaction
+# ADD A SIDEBAR
 with ui.sidebar(
     position="right", bg="#f8f8f8", open="open"
-):  # Set sidebar open by default
-    ui.h2("Sidebar")  # Add a second-level header titled "Sidebar"
-
-    # Dropdown for choosing a column
+): 
+    ui.h2("Sidebar") # sidebar header
+    # Dropdown menu 
     ui.input_selectize(
         "selected_attribute",
-        "Select column to visualize",
+        "Selected Attribute",
         choices=["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"],
-        selected="bill_length_mm",
     )
 
-    # Numeric input for Plotly histogram bins
-    ui.input_numeric("plotly_bin_count", "Plotly bin numeric", 1, min=1, max=10)
+    # Numeric input for Plotly histogram
+    ui.input_numeric("plotly_bin_count", "Bin Count (Plotly)", 1, min=1, max=10)
 
-    # Slider input for Seaborn bins
+    # Slider input for Seaborn
     ui.input_slider(
-        "seaborn_bin_count", "Seaborn bin count", 10, 50, 100, step=5, animate=True
+        "seaborn_bin_count", "Bin Count (Seaborn)", 5, 50, 25
     )
 
     # Checkbox to filter species
     ui.input_checkbox_group(
         "selected_species_list",
-        "Select a species",
+        "Select a Species",
         choices=["Adelie", "Gentoo", "Chinstrap"],
-        selected=["Chinstrap"],
-        inline=True,
+        selected=["Adelie", "Gentoo"],
+        inline=False,
     )
 
-    # Horizontal rule in the sidebar
+    # Dividing line
     ui.hr()
 
-    # Hyperlink to the sidebar for GitHub repository
-    ui.h5("GitHub Code Repository")
+    # Hyperlink to GitHub repo
+    ui.h5("GitHub Repo")
     ui.a(
         "cintel-02-data",
         href="https://github.com/katehuntsman/cintel-02-data",
@@ -82,16 +79,13 @@ with ui.layout_columns():
         def data_grid():
             return render.DataGrid(penguins)
 
-
-# Display the Scatterplot and Seaborn Histogram
 with ui.layout_columns():
     # Plotly Scatterplot (showing all species)
-    with ui.card():
-        ui.card_header("Plotly Scatterplot: Species")
-
-        @render_plotly
-        def plotly_scatterplot():
-            return px.scatter(
+        with ui.card(full_screen=True):
+            ui.card_header("Plotly Scatterplot: Species")
+            @render_plotly
+            def plotly_scatterplot():
+                return px.scatter(
                 data_frame=penguins,
                 x="body_mass_g",
                 y="bill_depth_mm",
@@ -103,23 +97,16 @@ with ui.layout_columns():
             )
 
     # Seaborn Histogram (showing all species)
-    with ui.card():
-        ui.card_header("Seaborn Histogram: All Species")
-
-        @render.plot
-        def seaborn_histogram():
-            hist = sns.histplot(
-                data=penguins, x="body_mass_g", bins=input.seaborn_bin_count()
+        with ui.card():
+            ui.card_header("Seaborn Histogram")
+            @render.plot
+            def plot2():
+                ax = sns.histplot(
+                    data=penguins,
+                    x=input.selected_attribute(),
+                    bins=input.seaborn_bin_count(),
             )
-            hist.set_xlabel("Mass (g)")
-            hist.set_ylabel("Count")
-            return hist
-            
-    # Summary Statistics Table
-    with ui.card():
-        ui.card_header("Summary Statistics")
-        
-        @render.data_frame
-        def summary_table():
-            summary = penguins.describe()
-            return summary.reset_index()  # Reset index for display
+                ax.set_title("Palmer Penguins")
+                ax.set_xlabel(input.selected_attribute())
+                ax.set_ylabel("Number")
+                return ax
